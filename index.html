@@ -16,7 +16,7 @@
 <script>
 'use strict';
 const $=id=>document.getElementById(id);
-const fields=['日期','市场','ASIN','品牌','归属','价格','价格变化','小类名称','小类排名','小类变化','大类名称','大类排名','大类变化','库存','连续缺货天数','Coupon','Buy Box'];
+const fields=['日期','市场','ASIN','品牌','主图','归属','价格','价格变化','小类名称','小类排名','小类变化','大类名称','大类排名','大类变化','库存','连续缺货天数','Coupon','Buy Box'];
 const example={date:'2026-11-17',items:[{market:'US',asin:'DEMO000001',brand:'示例品牌',group:'竞品',price:18.99,smallCategory:'相册',smallRank:12,largeCategory:'家居与厨房',largeRank:1450,stock:'有货',coupon:'5%',buyBox:'示例店铺'}]};
 $('schema').textContent=JSON.stringify(example,null,2);
 const domain={US:'com',UK:'co.uk',DE:'de',FR:'fr',IT:'it',ES:'es',CA:'ca',JP:'co.jp',AU:'com.au'};
@@ -61,7 +61,9 @@ function enrich(){
   hist.set(key(r),{price:r.price??prev.price,smallRank:r.smallRank==null?prev.smallRank:r,largeRank:r.largeRank==null?prev.largeRank:r,stock:r.stock,date:r.date,days:out.days});return out;
  });
 }
-function cells(r){return [r.date,r.market,r.asin,r.brand||'—',r.group,r.price==null?'—':[currency[r.market],fmt(r.price)].filter(Boolean).join(' '),r.pc==null?'—':signed(r.pc)+'%',r.smallCategory||'—',fmt(r.smallRank,0),signed(r.sc,0),r.largeCategory||'—',fmt(r.largeRank,0),signed(r.lc,0),r.stock,fmt(r.days,0),r.coupon||'—',r.buyBox||'—'];}
+const savedImages=JSON.parse(document.getElementById('product-images')?.textContent||'{}');
+const imageFor=r=>savedImages[r.market+'/'+r.asin]||data.findLast(x=>x.market===r.market&&x.asin===r.asin&&x.image)?.image||'';
+function cells(r){return [r.date,r.market,r.asin,r.brand||'—',imageFor(r),r.group,r.price==null?'—':[currency[r.market],fmt(r.price)].filter(Boolean).join(' '),r.pc==null?'—':signed(r.pc)+'%',r.smallCategory||'—',fmt(r.smallRank,0),signed(r.sc,0),r.largeCategory||'—',fmt(r.largeRank,0),signed(r.lc,0),r.stock,fmt(r.days,0),r.coupon||'—',r.buyBox||'—'];}
 function elem(tag,value,cls){const n=document.createElement(tag);if(value!==undefined)n.textContent=value;if(cls)n.className=cls;return n;}
 function render(){
  const get=id=>$(id).value;
@@ -73,7 +75,7 @@ function render(){
  const series=subset.filter(r=>key(r)===selected);
  $('charts').replaceChildren(chart('价格趋势','price',series,series.length?currency[series[0].market]||'当地币种':''),chart('小类 BSR 趋势','smallRank',series,'排名越小越靠前','smallCategory'),chart('大类 BSR 趋势','largeRank',series,'排名越小越靠前','largeCategory'));
  $('detail').textContent=get('from')&&get('to')&&get('from')>get('to')?'开始日期晚于结束日期。':shown.length+' 个站点商品 · 各显示最后一条快照';
- $('rows').replaceChildren(...shown.map(r=>{const tr=elem('tr');cells(r).forEach((v,i)=>{const td=elem('td',v,i===13&&v==='缺货'?'warn':'');if(i===2&&domain[r.market]&&mode!=='demo'){const a=elem('a',v);a.href='https://www.amazon.'+domain[r.market]+'/dp/'+r.asin;a.target='_blank';a.rel='noopener noreferrer';td.replaceChildren(a);}tr.append(td);});return tr;}));
+ $('rows').replaceChildren(...shown.map(r=>{const tr=elem('tr');cells(r).forEach((v,i)=>{const td=elem('td',v,i===14&&v==='缺货'?'warn':'');if(i===4){td.textContent='';if(v){const img=elem('img');img.src=v;img.alt=r.brand+' '+r.asin+' 主图';img.loading='lazy';img.width=60;img.height=60;img.style.objectFit='contain';img.referrerPolicy='no-referrer';img.onerror=()=>{td.textContent='图片暂不可用';};td.append(img);}else td.textContent='待采集';}if(i===2&&domain[r.market]&&mode!=='demo'){const a=elem('a',v);a.href='https://www.amazon.'+domain[r.market]+'/dp/'+r.asin;a.target='_blank';a.rel='noopener noreferrer';td.replaceChildren(a);}tr.append(td);});return tr;}));
  if(!shown.length){const tr=elem('tr'),td=elem('td','没有符合条件的快照。','muted');td.colSpan=fields.length;tr.append(td);$('rows').append(tr);}
  $('export').disabled=!shown.length;
 }
@@ -124,8 +126,6 @@ mode='real';
 update();
 const watch=JSON.parse($('watch-data').textContent);
 const watchFields=['品类','站点','归属','名次','ASIN','主图','品牌','2026-08','2026-09','2026-10','已记录销量合计','站点有数据月数'];
-const savedImages=JSON.parse(document.getElementById('product-images')?.textContent||'{}');
-const imageFor=r=>savedImages[r.market+'/'+r.asin]||data.findLast(x=>x.market===r.market&&x.asin===r.asin&&x.image)?.image||'';
 const watchRow=r=>[r.category,r.market,r.side,r.rank,r.asin,imageFor(r),r.brand,...r.units,r.total,r.coverage.filter(Boolean).length];
 const watchKeys=[['category','品类'],['market','站点'],['side','归属']];
 $('watch-head').append(...watchFields.map(v=>elem('th',v)));
